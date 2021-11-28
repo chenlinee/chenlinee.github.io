@@ -7,6 +7,8 @@ tags:
   - GitHub Pages
   - Minimal Mistake
 toc: true
+header:
+  teaser: /assets/images/2021-11-28-Minimal_Mistake搭建记录/minimal-mistakes-jekyll-theme.webp
 ---
 
 ## Github Pages
@@ -40,7 +42,10 @@ categories:
 tags:
   - GitHub Pages
   - Minimal Mistake
-<!-- 生成目录 -->
+<!-- 生成博文目录 -->
 toc: true
+header:
+  <!-- 封面图片 -->
+  teaser: /assets/images/2021-11-28-Minimal_Mistake搭建记录/minimal-mistakes-jekyll-theme.webp
 ---
 ```
