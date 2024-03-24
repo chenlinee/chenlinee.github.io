@@ -36,22 +36,26 @@ acme.sh --register-account="email@mail.com"
 
 泛域名证书需要提供DNS解析证明你是域名的拥有者，不需要通过设置本机的http服务器验证域名ip对应关系，对内网机器非常友好。[acme.sh支持100+ DNS记录提供商的API接口](https://github.com/acmesh-official/acme.sh/wiki/dnsapi)，设置好API即可通过acme.sh自动申请证书。
 
-我的域名解析托管商是阿里云，在阿里云控制台申请到API后，设置临时环境变量：
+我的域名解析托管商是CloudFlare，在CloudFlare申请到相关API后，设置临时环境变量：
+
+教程：https://github.com/acmesh-official/acme.sh/wiki/dnsapi#dns_cf
 
 ```bash
-export Ali_Key="sdfsdfsdfljlbjkljlkjsdfoixxx"
-export Ali_Secret="jlsdflanljkljlfdsaklkjfxxxx"
+export CF_Token=${cf_token}
+export CF_Zone_ID=${cf_zone_id}
+export CF_Account_ID=${cf_account_id}
 ```
 
-然后使用对应DNS验证申请证书，acme.sh会自动缓存API信息。在实际申请时，我通过zerossl申请证书出现了`504 Gateway Timeout`错误，可能是网络问题，手动指定服务器换成原来的Let's Encrypt顺利申请。
+然后使用对应DNS验证申请证书，acme.sh会自动缓存API信息。通过zerossl申请证书遇到`504 Gateway Timeout`的网络问题，切换服务器为Let's Encrypt顺利申请。
 
 acme.sh申请证书的长度默认是rsa-2048，这里改成ecc-256，可以减少秘钥计算，提高安全性。
 
 ```bash
 # a.example.com, b.example.com共享证书
-acme.sh --issue --server letsencrypt --dns dns_ali -k ec-256 -d a.example.com -d b.example.com
+acme.sh --issue --server letsencrypt --dns dns_cf -k ec-256 -d a.example.com -d b.example.com
 # 为c.example.com生成单独的证书
-acme.sh --issue --server letsencrypt --dns dns_ali -k ec-256 -d c.example.com
+domain_name=example.com
+acme.sh --issue --server letsencrypt --dns dns_cf -k ec-256 -d ${domain_name}
 ```
 
 执行完成之后，即可申请到证书。通过`acme.sh --list`命令就能看到申请的证书了。
@@ -61,11 +65,13 @@ acme.sh --issue --server letsencrypt --dns dns_ali -k ec-256 -d c.example.com
 acme.sh生成的证书默认放在~/.acme.sh文件夹，acme.sh后续的更新可能会更改内部文件结构。因此不推荐直接使用这个文件夹的证书，而应该安装证书到其他目录。
 
 ```bash
-acme.sh --install-cert --ecc -d example.com \
---cert-file /dir/example.com/cert.pem \
---key-file /dir/example.com/key.pem \
---fullchain-file /dir/example.com/fullchain.pem \
---reloadcmd "bash /dir/example.com/reload.sh"
+domain_name=example.com
+install_path=/etc/acme_ssl/certs
+acme.sh --install-cert --ecc -d ${domain_name} \
+--key-file ${install_path}/${domain_name}.key \
+--fullchain-file ${install_path}/${domain_name}.crt \
+--ca-file ${install_path}/${domain_name}.ca.crt \
+--reloadcmd "systemctl reload nginx"
 ```
 
 `--reloadcmd`参数可以提供一个执行更新命令的接口，在这里执行脚本，实现更新证书时完成一些自动化任务，比如让nginx重新加载证书。
