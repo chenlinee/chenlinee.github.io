@@ -24,7 +24,7 @@ source ~/.bashrc
 
 由于Let's Encrypt免费证书3个月自动过期，acme.sh安装时，还会设置一个crontab定时工作，每天检查一次证书是否快要过期，完成自动更新。目前，acme.sh的证书更新时间是证书颁发日期60天后。
 
-## 申请证书
+### 注册zerossl（可选）
 
 acme.sh 3.0版本之后，默认申请的证书时zerossl提供的。通过zerossl申请证书，需要先用acme.sh脚本注册账号。如果选择Let's Encrypt申请证书，就不用注册了。
 
@@ -32,9 +32,18 @@ acme.sh 3.0版本之后，默认申请的证书时zerossl提供的。通过zeros
 acme.sh --register-account="email@mail.com"
 ```
 
+## 申请证书的方式
+
+acme.sh 支持多种申请证书的方式，各有适合的场景。
+
+```bash
+# 假设需要申请证书的域名是 example.com
+domain_name=example.com
+```
+
 ### 通过DNS解析申请泛域名证书
 
-泛域名证书需要提供DNS解析证明你是域名的拥有者，不需要通过设置本机的http服务器验证域名ip对应关系，对内网机器非常友好。[acme.sh支持100+ DNS记录提供商的API接口](https://github.com/acmesh-official/acme.sh/wiki/dnsapi)，设置好API即可通过acme.sh自动申请证书。
+泛域名证书需要提供DNS解析证明你是域名的拥有者，不需要通过设置本机的http服务器验证域名ip对应关系，对没有公网ip的机器友好。[acme.sh支持100+ DNS记录提供商的API接口](https://github.com/acmesh-official/acme.sh/wiki/dnsapi)，设置好API即可通过acme.sh自动申请证书。
 
 我的域名解析托管商是CloudFlare，在CloudFlare申请到相关API后，设置临时环境变量：
 
@@ -60,13 +69,42 @@ acme.sh --issue --server letsencrypt --dns dns_cf -k ec-256 -d ${domain_name}
 
 执行完成之后，即可申请到证书。通过`acme.sh --list`命令就能看到申请的证书了。
 
+### 通过 http 方式申请证书
+
+acme.sh 默认 http 方式需要依赖 web 服务器，在指定目录放置文件完成验证。
+acme.sh 也可以直接接模拟 web 服务器，监听 80 端口完成验证，实现证书签发。模拟 web 服务器
+的方式更方便。为了避免和 web 服务器端口冲突，可以使用 nginx 的 `proxy` 模式。
+
+```bash
+port=21742
+sudo sh -c 'cat << EOF > /etc/nginx/sites-available/let_encrypt
+server {
+    listen       80;
+    server_name  '"${domain_name}"';
+
+    location / {
+        proxy_pass http://127.0.0.1:'"${port}"';
+    }
+}
+EOF'
+sudo ln -s /etc/nginx/sites-available/let_encrypt /etc/nginx/sites-enabled/let_encrypt
+sudo systemctl reload nginx
+```
+
+设置后， acme.sh 改用端口申请证书。
+
+```bash
+acme.sh --issue -d ${domain_name} -k ec-256 --standalone --httpport ${port}
+```
+
 ## acme.sh证书安装与更新
 
 acme.sh生成的证书默认放在~/.acme.sh文件夹，acme.sh后续的更新可能会更改内部文件结构。因此不推荐直接使用这个文件夹的证书，而应该安装证书到其他目录。
 
 ```bash
-domain_name=example.com
 install_path=/etc/acme_ssl/certs
+mkdir -p ${install_path}
+chmod 700 ${install_path}
 acme.sh --install-cert --ecc -d ${domain_name} \
 --key-file ${install_path}/${domain_name}.key \
 --fullchain-file ${install_path}/${domain_name}.crt \
